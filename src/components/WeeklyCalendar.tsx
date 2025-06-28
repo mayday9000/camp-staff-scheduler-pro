@@ -38,66 +38,65 @@ interface WeeklyCalendarProps {
 }
 
 const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onStaffRemoval, onStaffSwap }: WeeklyCalendarProps) => {
+  
+
   const [draggedStaff, setDraggedStaff] = useState<{
     name: string;
     fromDate: string;
     fromTime: string;
   } | null>(null);
 
+// ─── Normalize incoming dates to YYYY-MM-DD ────────────────────────
+  const cleanedAssignments = assignments.map(a => ({
+    ...a,
+    Date: a.Date.includes('T') ? a.Date.split('T')[0] : a.Date
+  }));
+
   // Generate week dates dynamically based on available data
-  const getWeekDates = () => {
-    if (!assignments || assignments.length === 0) {
-      // Default to July 1-5, 2025 if no data
-      const dates = [];
+    // ─── Build Mon–Fri slot dates off normalized assignments ───────────
+  const weekDates = (() => {
+    if (cleanedAssignments.length === 0) {
+      const dates: string[] = [];
       const startDate = new Date('2025-07-01');
       for (let i = 0; i < 5; i++) {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
-        dates.push(date.toISOString().split('T')[0]);
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        dates.push(d.toISOString().split('T')[0]);
       }
       return dates;
     }
-
-    // Get unique dates from assignments and sort them
-    const uniqueDates = [...new Set(assignments.map(a => a.Date))].sort();
-    
-    // Find the first Monday of the available dates
+    const uniqueDates = [
+      ...new Set(cleanedAssignments.map(a => a.Date))
+    ].sort();
     let startDate = new Date(uniqueDates[0]);
-    while (startDate.getDay() !== 1) { // 1 = Monday
+    // roll back to Monday
+    while (startDate.getDay() !== 1) {
       startDate.setDate(startDate.getDate() - 1);
     }
-    
-    // Generate 5 weekdays starting from Monday
-    const dates = [];
-    for (let i = 0; i < 5; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-    return dates;
-  };
+    // collect Mon–Fri
+    return Array.from({ length: 5 }, (_, i) => {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      return d.toISOString().split('T')[0];
+    });
+  })();
 
-  // Generate time slots using fixed times
+  // ─── Fixed time slots (unchanged) ───────────────────────────────────
   const getTimeSlots = () => {
     const slots = [];
     for (let i = 0; i < TIME_SLOTS.length - 1; i++) {
-      slots.push({
-        startTime: TIME_SLOTS[i],
-        endTime: TIME_SLOTS[i + 1]
-      });
+      slots.push({ startTime: TIME_SLOTS[i], endTime: TIME_SLOTS[i + 1] });
     }
     return slots;
   };
-
-  const weekDates = getWeekDates();
   const timeSlots = getTimeSlots();
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-  const getAssignmentsForSlot = (date: string, startTime: string) => {
-    return assignments.filter(
-      assignment => assignment.Date === date && assignment.StartTime === startTime
+  // ─── Filter assignments using normalized dates ──────────────────────
+  const getAssignmentsForSlot = (date: string, startTime: string) =>
+    cleanedAssignments.filter(
+      a => a.Date === date && a.StartTime === startTime
     );
-  };
 
   const getStaffMember = (staffName: string) => {
     return staff.find(s => s.name === staffName);
