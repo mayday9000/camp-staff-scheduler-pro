@@ -2,7 +2,9 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { X, AlertTriangle } from "lucide-react";
+import { isStaffAvailable, TIME_SLOTS } from "@/utils/staffAvailability";
 
 interface Assignment {
   Date: string;
@@ -11,14 +13,28 @@ interface Assignment {
   AssignedStaff: string;
 }
 
+interface Staff {
+  name: string;
+  qualifications: string[];
+  weeklyHourLimit: number;
+  notes: string;
+  role?: string;
+  availability?: Array<{
+    day: string;
+    startTime: string;
+    endTime: string;
+  }>;
+}
+
 interface WeeklyCalendarProps {
   assignments: Assignment[];
   campType: "elementary" | "middle";
+  staff: Staff[];
   onStaffAssignment: (staffName: string, date: string, startTime: string, endTime: string, campType: "elementary" | "middle") => void;
   onStaffRemoval: (date: string, startTime: string, staffName: string, campType: "elementary" | "middle") => void;
 }
 
-const WeeklyCalendar = ({ assignments, campType, onStaffAssignment, onStaffRemoval }: WeeklyCalendarProps) => {
+const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onStaffRemoval }: WeeklyCalendarProps) => {
   const [draggedStaff, setDraggedStaff] = useState<string | null>(null);
 
   // Generate week dates (Monday to Friday)
@@ -33,13 +49,14 @@ const WeeklyCalendar = ({ assignments, campType, onStaffAssignment, onStaffRemov
     return dates;
   };
 
-  // Generate time slots (8 AM to 6 PM)
+  // Generate time slots using fixed times
   const getTimeSlots = () => {
     const slots = [];
-    for (let hour = 8; hour < 18; hour++) {
-      const startTime = `${hour.toString().padStart(2, '0')}:00`;
-      const endTime = `${(hour + 1).toString().padStart(2, '0')}:00`;
-      slots.push({ startTime, endTime });
+    for (let i = 0; i < TIME_SLOTS.length - 1; i++) {
+      slots.push({
+        startTime: TIME_SLOTS[i],
+        endTime: TIME_SLOTS[i + 1]
+      });
     }
     return slots;
   };
@@ -52,6 +69,10 @@ const WeeklyCalendar = ({ assignments, campType, onStaffAssignment, onStaffRemov
     return assignments.filter(
       assignment => assignment.Date === date && assignment.StartTime === startTime
     );
+  };
+
+  const getStaffMember = (staffName: string) => {
+    return staff.find(s => s.name === staffName);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -85,73 +106,110 @@ const WeeklyCalendar = ({ assignments, campType, onStaffAssignment, onStaffRemov
   };
 
   return (
-    <div className="w-full">
-      <h3 className="text-lg font-semibold mb-4 capitalize">
-        {campType} Camp Schedule - Week of July 1, 2025
-      </h3>
-      
-      <div className="border rounded-lg overflow-hidden">
-        {/* Header with days */}
-        <div className="grid grid-cols-6 bg-gray-50">
-          <div className="p-3 border-r font-medium text-sm text-center">Time</div>
-          {weekDates.map((date, index) => (
-            <div key={date} className="p-3 border-r last:border-r-0 font-medium text-sm text-center">
-              <div>{dayNames[index]}</div>
-              <div className="text-xs text-gray-500">{formatDate(date)}</div>
+    <TooltipProvider>
+      <div className="w-full">
+        <h3 className="text-lg font-semibold mb-4 capitalize">
+          {campType} Camp Schedule - Week of July 1, 2025
+        </h3>
+        
+        <div className="border rounded-lg overflow-hidden bg-white">
+          {/* Header with days */}
+          <div className="grid grid-cols-6 bg-gray-50">
+            <div className="p-3 border-r font-medium text-sm text-center">Time</div>
+            {weekDates.map((date, index) => (
+              <div key={date} className="p-3 border-r last:border-r-0 font-medium text-sm text-center">
+                <div>{dayNames[index]}</div>
+                <div className="text-xs text-gray-500">{formatDate(date)}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Time slots */}
+          {timeSlots.map(({ startTime, endTime }) => (
+            <div key={startTime} className="grid grid-cols-6 border-t">
+              <div className="p-3 border-r bg-gray-50 text-sm font-medium text-center">
+                {formatTime(startTime)}
+              </div>
+              
+              {weekDates.map(date => {
+                const slotAssignments = getAssignmentsForSlot(date, startTime);
+                
+                return (
+                  <div
+                    key={`${date}-${startTime}`}
+                    className="p-2 border-r last:border-r-0 min-h-16 bg-white hover:bg-gray-50 transition-colors relative"
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, date, startTime, endTime)}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      if (draggedStaff) {
+                        e.currentTarget.classList.add('bg-blue-50', 'border-blue-200');
+                      }
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
+                    }}
+                    role="region"
+                    aria-label={`Time slot ${formatTime(startTime)} on ${dayNames[weekDates.indexOf(date)]}`}
+                  >
+                    <div className="space-y-1">
+                      {slotAssignments.map((assignment, index) => {
+                        const staffMember = getStaffMember(assignment.AssignedStaff);
+                        const isAvailable = staffMember ? isStaffAvailable(staffMember, date, startTime) : true;
+                        
+                        return (
+                          <Tooltip key={index}>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="secondary"
+                                className={`text-xs flex items-center justify-between gap-1 w-full ${
+                                  isAvailable 
+                                    ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' 
+                                    : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1 truncate">
+                                  {!isAvailable && <AlertTriangle size={10} />}
+                                  <span className="truncate">{assignment.AssignedStaff}</span>
+                                </div>
+                                <button
+                                  onClick={() => onStaffRemoval(date, startTime, assignment.AssignedStaff, campType)}
+                                  className="ml-1 hover:bg-blue-300 rounded-full p-0.5 shrink-0"
+                                  aria-label={`Remove ${assignment.AssignedStaff} from this time slot`}
+                                >
+                                  <X size={10} />
+                                </button>
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="space-y-1">
+                                <p><strong>{assignment.AssignedStaff}</strong></p>
+                                <p>{formatTime(startTime)} - {formatTime(endTime)}</p>
+                                {staffMember && (
+                                  <>
+                                    <p><strong>Role:</strong> {staffMember.role || 'Not specified'}</p>
+                                    <p><strong>Notes:</strong> {staffMember.notes}</p>
+                                    {!isAvailable && (
+                                      <p className="text-amber-600 font-medium">
+                                        ⚠️ Outside normal availability
+                                      </p>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
-
-        {/* Time slots */}
-        {timeSlots.map(({ startTime, endTime }) => (
-          <div key={startTime} className="grid grid-cols-6 border-t">
-            <div className="p-3 border-r bg-gray-50 text-sm font-medium text-center">
-              {formatTime(startTime)}
-            </div>
-            
-            {weekDates.map(date => {
-              const slotAssignments = getAssignmentsForSlot(date, startTime);
-              
-              return (
-                <div
-                  key={`${date}-${startTime}`}
-                  className="p-2 border-r last:border-r-0 min-h-16 bg-white hover:bg-gray-50 transition-colors"
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, date, startTime, endTime)}
-                  onDragEnter={(e) => {
-                    e.preventDefault();
-                    if (draggedStaff) {
-                      e.currentTarget.classList.add('bg-blue-50', 'border-blue-200');
-                    }
-                  }}
-                  onDragLeave={(e) => {
-                    e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
-                  }}
-                >
-                  <div className="space-y-1">
-                    {slotAssignments.map((assignment, index) => (
-                      <Badge
-                        key={index}
-                        variant="secondary"
-                        className="text-xs flex items-center justify-between gap-1 bg-blue-100 text-blue-800 hover:bg-blue-200"
-                      >
-                        <span className="truncate">{assignment.AssignedStaff}</span>
-                        <button
-                          onClick={() => onStaffRemoval(date, startTime, assignment.AssignedStaff, campType)}
-                          className="ml-1 hover:bg-blue-300 rounded-full p-0.5"
-                        >
-                          <X size={10} />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
+import { useScheduleData } from "@/hooks/useScheduleData";
 import WeeklyCalendar from "./WeeklyCalendar";
 import StaffPool from "./StaffPool";
 
@@ -25,6 +25,12 @@ interface ScheduleData {
     qualifications: string[];
     weeklyHourLimit: number;
     notes: string;
+    role?: string;
+    availability?: Array<{
+      day: string;
+      startTime: string;
+      endTime: string;
+    }>;
   }>;
 }
 
@@ -36,6 +42,7 @@ const CampScheduler = ({ initialData }: CampSchedulerProps) => {
   const [scheduleData, setScheduleData] = useState<ScheduleData>(initialData);
   const [activeTab, setActiveTab] = useState<"elementary" | "middle">("elementary");
   const [isSaving, setIsSaving] = useState(false);
+  const { saveData } = useScheduleData();
 
   const handleStaffAssignment = (
     staffName: string,
@@ -101,46 +108,16 @@ const CampScheduler = ({ initialData }: CampSchedulerProps) => {
     );
   };
 
-  const saveSchedule = async () => {
+  const handleSaveSchedule = async () => {
     setIsSaving(true);
     
-    try {
-      const payload = {
-        elementary: scheduleData.elementary,
-        middle: scheduleData.middle
-      };
-      
-      // Simulate API call - replace with actual webhook URL
-      console.log("Saving schedule:", payload);
-      
-      // Uncomment and replace with actual webhook URL when ready
-      // const response = await fetch('YOUR_WEBHOOK_URL', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify(payload),
-      // });
-      
-      // if (!response.ok) {
-      //   throw new Error('Failed to save schedule');
-      // }
-      
-      toast({
-        title: "Schedule Saved",
-        description: "The camp schedule has been successfully saved.",
-      });
-      
-    } catch (error) {
-      console.error("Error saving schedule:", error);
-      toast({
-        title: "Save Failed",
-        description: "There was an error saving the schedule. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
+    const payload = {
+      elementary: scheduleData.elementary,
+      middle: scheduleData.middle
+    };
+    
+    await saveData(payload);
+    setIsSaving(false);
   };
 
   return (
@@ -159,7 +136,7 @@ const CampScheduler = ({ initialData }: CampSchedulerProps) => {
           </Tabs>
           
           <Button 
-            onClick={saveSchedule} 
+            onClick={handleSaveSchedule} 
             disabled={isSaving}
             className="bg-green-600 hover:bg-green-700"
           >
@@ -172,6 +149,7 @@ const CampScheduler = ({ initialData }: CampSchedulerProps) => {
             <WeeklyCalendar
               assignments={scheduleData[activeTab]}
               campType={activeTab}
+              staff={scheduleData.staff}
               onStaffAssignment={handleStaffAssignment}
               onStaffRemoval={handleStaffRemoval}
             />

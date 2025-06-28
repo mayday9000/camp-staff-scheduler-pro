@@ -1,66 +1,50 @@
 
-import { useState } from "react";
 import CampScheduler from "@/components/CampScheduler";
-
-// Sample data for demonstration
-const sampleData = {
-  elementary: [
-    {
-      Date: "2025-07-01",
-      StartTime: "08:00",
-      EndTime: "09:00",
-      AssignedStaff: "Alice Smith"
-    },
-    {
-      Date: "2025-07-01",
-      StartTime: "09:00",
-      EndTime: "10:00",
-      AssignedStaff: "Bob Johnson"
-    }
-  ],
-  middle: [
-    {
-      Date: "2025-07-02",
-      StartTime: "10:00",
-      EndTime: "11:00",
-      AssignedStaff: "Carol Lee"
-    }
-  ],
-  staff: [
-    {
-      name: "Alice Smith",
-      qualifications: ["Elementary"],
-      weeklyHourLimit: 40,
-      notes: "Head counselor, CPR certified"
-    },
-    {
-      name: "Bob Johnson",
-      qualifications: ["Elementary", "Middle"],
-      weeklyHourLimit: 35,
-      notes: "Sports specialist"
-    },
-    {
-      name: "Carol Lee",
-      qualifications: ["Middle"],
-      weeklyHourLimit: 30,
-      notes: "Art therapy background"
-    },
-    {
-      name: "David Martinez",
-      qualifications: ["Elementary"],
-      weeklyHourLimit: 25,
-      notes: "Part-time, mornings preferred"
-    },
-    {
-      name: "Emma Wilson",
-      qualifications: ["Elementary", "Middle"],
-      weeklyHourLimit: 40,
-      notes: "First aid certified, swimming instructor"
-    }
-  ]
-};
+import { useScheduleData } from "@/hooks/useScheduleData";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, Loader2 } from "lucide-react";
 
 const Index = () => {
+  const { scheduleData, isLoading, error, loadData } = useScheduleData();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Loading Schedule Data</h2>
+          <p className="text-gray-600">Fetching the latest camp schedule...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error && !scheduleData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+        <Card className="p-8 text-center max-w-md">
+          <h2 className="text-xl font-semibold mb-2 text-red-600">Failed to Load Data</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Button onClick={loadData} className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Retry Loading
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!scheduleData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <p className="text-gray-600">No schedule data available</p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
       <div className="container mx-auto py-8">
@@ -71,8 +55,17 @@ const Index = () => {
           <p className="text-lg text-gray-600">
             Drag and drop staff scheduling for Elementary and Middle camp programs
           </p>
+          <Button 
+            onClick={loadData} 
+            variant="outline" 
+            size="sm" 
+            className="mt-4 flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh Data
+          </Button>
         </div>
-        <CampScheduler initialData={sampleData} />
+        <CampScheduler initialData={scheduleData} />
       </div>
     </div>
   );
