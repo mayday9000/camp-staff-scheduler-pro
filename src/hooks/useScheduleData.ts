@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 
@@ -33,7 +32,7 @@ interface ScheduleData {
   }>;
 }
 
-const WEBHOOK_URL = 'https://mayday.app.n8n.cloud/webhook-test/78e1f0c2-ea99-4e09-b79f-eb55d1c1cec3';
+const WEBHOOK_URL = 'https://mayday.app.n8n.cloud/webhook/78e1f0c2-ea99-4e09-b79f-eb55d1c1cec3';
 
 export const useScheduleData = () => {
   const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
