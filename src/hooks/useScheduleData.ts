@@ -67,9 +67,11 @@ export const useScheduleData = () => {
         elementary: data.elementary || [],
         middle: data.middle || [],
         staff: (data.staff || []).map((staff: any) => ({
+          id: staff.id,
           name: staff.name,
           role: staff.role,
           qualifications: staff.qualifications || [],
+          maxHours: staff.maxHours,
           weeklyHourLimit: staff.maxHours || staff.weeklyHourLimit || 40,
           notes: staff.notes || '',
           availability: staff.availability

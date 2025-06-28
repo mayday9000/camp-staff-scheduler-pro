@@ -21,9 +21,11 @@ interface ScheduleData {
     AssignedStaff: string;
   }>;
   staff: Array<{
+    id?: string;
     name: string;
     qualifications: string[];
-    weeklyHourLimit: number;
+    weeklyHourLimit?: number;
+    maxHours?: number;
     notes: string;
     role?: string;
     availability?: Array<{
