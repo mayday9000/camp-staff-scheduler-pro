@@ -1,110 +1,206 @@
-// src/components/CampScheduler.tsx
-import { useState } from "react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { useScheduleData } from "@/hooks/useScheduleData";
-import WeeklyCalendar from "./WeeklyCalendar";
-import StaffPool from "./StaffPool";
+import { useState, useEffect } from 'react';
+import { toast } from '@/hooks/use-toast';
 
-const CampScheduler = () => {
-  // 1) hook is now the single source of truth
-  const {
+interface ScheduleData {
+  elementary: Array<{
+    Date: string;
+    StartTime: string;
+    EndTime: string;
+    AssignedStaff: string;
+    CampType?: string;
+  }>;
+  middle: Array<{
+    Date: string;
+    StartTime: string;
+    EndTime: string;
+    AssignedStaff: string;
+    CampType?: string;
+  }>;
+  staff: Array<{
+    id?: string;
+    name: string;
+    role?: string;
+    qualifications: string[];
+    maxHours?: number;
+    weeklyHourLimit?: number;
+    notes: string;
+    availability?: Array<{
+      day: string;
+      startTime: string;
+      endTime: string;
+    }>;
+  }>;
+}
+
+const WEBHOOK_URL = 'https://mayday.app.n8n.cloud/webhook/78e1f0c2-ea99-4e09-b79f-eb55d1c1cec3';
+
+export const useScheduleData = () => {
+  const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load data: ${response.status}`);
+      }
+
+      const rawData = await response.json();
+      console.log('Raw webhook data:', rawData);
+      
+      // Handle the array wrapper format from the webhook
+      const data = Array.isArray(rawData) ? rawData[0] : rawData;
+      
+      // Transform the data to match our expected format
+      const transformedData: ScheduleData = {
+        elementary: data.elementary || [],
+        middle: data.middle || [],
+        staff: (data.staff || []).map((staff: any) => ({
+          id: staff.id,
+          name: staff.name,
+          role: staff.role,
+          qualifications: staff.qualifications || [],
+          maxHours: staff.maxHours,
+          weeklyHourLimit: staff.maxHours || staff.weeklyHourLimit || 40,
+          notes: staff.notes || '',
+          availability: staff.availability
+        }))
+      };
+      
+      setScheduleData(transformedData);
+      
+      toast({
+        title: "Data Loaded",
+        description: "Schedule data has been loaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error loading schedule data:', error);
+      setError(error instanceof Error ? error.message : 'Unknown error');
+      
+      // Fallback to sample data
+      setScheduleData({
+        elementary: [
+          {
+            Date: "2025-07-01",
+            StartTime: "08:00",
+            EndTime: "09:00",
+            AssignedStaff: "Alice Smith"
+          },
+          {
+            Date: "2025-07-01",
+            StartTime: "09:00",
+            EndTime: "10:00",
+            AssignedStaff: "Bob Johnson"
+          }
+        ],
+        middle: [
+          {
+            Date: "2025-07-02",
+            StartTime: "10:00",
+            EndTime: "11:00",
+            AssignedStaff: "Carol Lee"
+          }
+        ],
+        staff: [
+          {
+            name: "Alice Smith",
+            qualifications: ["Elementary"],
+            weeklyHourLimit: 40,
+            notes: "Head counselor, CPR certified",
+            role: "Head Counselor"
+          },
+          {
+            name: "Bob Johnson",
+            qualifications: ["Elementary", "Middle"],
+            weeklyHourLimit: 35,
+            notes: "Sports specialist",
+            role: "Sports Coordinator"
+          },
+          {
+            name: "Carol Lee",
+            qualifications: ["Middle"],
+            weeklyHourLimit: 30,
+            notes: "Art therapy background",
+            role: "Arts & Crafts"
+          },
+          {
+            name: "David Martinez",
+            qualifications: ["Elementary"],
+            weeklyHourLimit: 25,
+            notes: "Part-time, mornings preferred",
+            role: "Assistant"
+          },
+          {
+            name: "Emma Wilson",
+            qualifications: ["Elementary", "Middle"],
+            weeklyHourLimit: 40,
+            notes: "First aid certified, swimming instructor",
+            role: "Lifeguard"
+          }
+        ]
+      });
+      
+      toast({
+        title: "Using Sample Data",
+        description: "Could not load from webhook, using sample data instead.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveData = async (data: Pick<ScheduleData, 'elementary' | 'middle'>) => {
+    try {
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save data: ${response.status}`);
+      }
+
+      toast({
+        title: "Schedule Saved",
+        description: "The camp schedule has been successfully saved.",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving schedule data:', error);
+      toast({
+        title: "Save Failed",
+        description: "There was an error saving the schedule. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  return {
     scheduleData,
+    setScheduleData,
     isLoading,
     error,
+    loadData,
     saveData
-  } = useScheduleData();
-
-  // 2) tabs & saving state
-  const [activeTab, setActiveTab] = useState<"elementary" | "middle">("elementary");
-  const [isSaving, setIsSaving] = useState(false);
-
-  // 3) handlers unchanged
-  const handleStaffAssignment = (
-    staffName: string,
-    date: string,
-    startTime: string,
-    endTime: string,
-    campType: "elementary" | "middle"
-  ) => {
-    saveData; /* your existing assignment logic */
   };
-  // …your other handlers here (removal, swap, etc)…
-
-  const calculateStaffHours = (staffName: string) => {
-    if (!scheduleData) return 0;
-    return (
-      scheduleData.elementary.filter(a => a.AssignedStaff === staffName).length +
-      scheduleData.middle.filter(a => a.AssignedStaff === staffName).length
-    );
-  };
-
-  const getQualifiedStaff = () => {
-    if (!scheduleData) return [];
-    return scheduleData.staff.filter(s =>
-      s.qualifications.includes(activeTab === "elementary" ? "Elementary" : "Middle")
-    );
-  };
-
-  const handleSaveSchedule = async () => {
-    if (!scheduleData) return;
-    setIsSaving(true);
-    await saveData({
-      elementary: scheduleData.elementary,
-      middle: scheduleData.middle
-    });
-    setIsSaving(false);
-  };
-
-  // 4) loading / error
-  if (isLoading || !scheduleData) {
-    return <div className="p-6 text-center">Loading schedule…</div>;
-  }
-  if (error) {
-    return <div className="p-6 text-center text-red-600">Error: {error}</div>;
-  }
-
-  // 5) render using scheduleData directly
-  return (
-    <div className="w-full max-w-7xl mx-auto space-y-6">
-      <Card className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <Tabs value={activeTab} onValueChange={v => setActiveTab(v as any)}>
-            <TabsList className="grid w-full max-w-md grid-cols-2">
-              <TabsTrigger value="elementary">Elementary Camp</TabsTrigger>
-              <TabsTrigger value="middle">Middle Camp</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Button
-            onClick={handleSaveSchedule}
-            disabled={isSaving}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {isSaving ? "Saving..." : "Save Schedule"}
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3">
-            <WeeklyCalendar
-              assignments={scheduleData[activeTab]}
-              campType={activeTab}
-              staff={scheduleData.staff}
-              onStaffAssignment={handleStaffAssignment}
-              onStaffRemoval={/* your removal handler */}
-              onStaffSwap={/* your swap handler */}
-            />
-          </div>
-          <StaffPool
-            staff={getQualifiedStaff()}
-            campType={activeTab}
-            calculateStaffHours={calculateStaffHours}
-          />
-        </div>
-      </Card>
-    </div>
-  );
 };
-
-export default CampScheduler;
