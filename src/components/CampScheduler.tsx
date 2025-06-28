@@ -90,6 +90,42 @@ const CampScheduler = ({ initialData }: CampSchedulerProps) => {
     });
   };
 
+  const handleStaffSwap = (
+    fromDate: string,
+    fromTime: string,
+    fromStaff: string,
+    toDate: string,
+    toTime: string,
+    toStaff: string,
+    campType: "elementary" | "middle"
+  ) => {
+    setScheduleData(prev => {
+      const newSchedule = { ...prev };
+      
+      // Find the assignments to swap
+      const fromAssignmentIndex = newSchedule[campType].findIndex(
+        assignment => assignment.Date === fromDate && 
+                     assignment.StartTime === fromTime && 
+                     assignment.AssignedStaff === fromStaff
+      );
+      
+      const toAssignmentIndex = newSchedule[campType].findIndex(
+        assignment => assignment.Date === toDate && 
+                     assignment.StartTime === toTime && 
+                     assignment.AssignedStaff === toStaff
+      );
+      
+      if (fromAssignmentIndex !== -1 && toAssignmentIndex !== -1) {
+        // Swap the staff assignments
+        const temp = newSchedule[campType][fromAssignmentIndex].AssignedStaff;
+        newSchedule[campType][fromAssignmentIndex].AssignedStaff = newSchedule[campType][toAssignmentIndex].AssignedStaff;
+        newSchedule[campType][toAssignmentIndex].AssignedStaff = temp;
+      }
+      
+      return newSchedule;
+    });
+  };
+
   const calculateStaffHours = (staffName: string) => {
     const elementaryHours = scheduleData.elementary.filter(
       assignment => assignment.AssignedStaff === staffName
@@ -152,6 +188,7 @@ const CampScheduler = ({ initialData }: CampSchedulerProps) => {
               staff={scheduleData.staff}
               onStaffAssignment={handleStaffAssignment}
               onStaffRemoval={handleStaffRemoval}
+              onStaffSwap={handleStaffSwap}
             />
           </div>
           

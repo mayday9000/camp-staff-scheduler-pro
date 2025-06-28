@@ -8,19 +8,23 @@ interface ScheduleData {
     StartTime: string;
     EndTime: string;
     AssignedStaff: string;
+    CampType?: string;
   }>;
   middle: Array<{
     Date: string;
     StartTime: string;
     EndTime: string;
     AssignedStaff: string;
+    CampType?: string;
   }>;
   staff: Array<{
+    id?: string;
     name: string;
-    qualifications: string[];
-    weeklyHourLimit: number;
-    notes: string;
     role?: string;
+    qualifications: string[];
+    maxHours?: number;
+    weeklyHourLimit?: number;
+    notes: string;
     availability?: Array<{
       day: string;
       startTime: string;
@@ -52,8 +56,27 @@ export const useScheduleData = () => {
         throw new Error(`Failed to load data: ${response.status}`);
       }
 
-      const data = await response.json();
-      setScheduleData(data);
+      const rawData = await response.json();
+      console.log('Raw webhook data:', rawData);
+      
+      // Handle the array wrapper format from the webhook
+      const data = Array.isArray(rawData) ? rawData[0] : rawData;
+      
+      // Transform the data to match our expected format
+      const transformedData: ScheduleData = {
+        elementary: data.elementary || [],
+        middle: data.middle || [],
+        staff: (data.staff || []).map((staff: any) => ({
+          name: staff.name,
+          role: staff.role,
+          qualifications: staff.qualifications || [],
+          weeklyHourLimit: staff.maxHours || staff.weeklyHourLimit || 40,
+          notes: staff.notes || '',
+          availability: staff.availability
+        }))
+      };
+      
+      setScheduleData(transformedData);
       
       toast({
         title: "Data Loaded",

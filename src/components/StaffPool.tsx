@@ -10,7 +10,8 @@ import { Info } from "lucide-react";
 interface Staff {
   name: string;
   qualifications: string[];
-  weeklyHourLimit: number;
+  weeklyHourLimit?: number;
+  maxHours?: number;
   notes: string;
   role?: string;
 }
@@ -74,8 +75,9 @@ const StaffPool = ({ staff, campType, calculateStaffHours }: StaffPoolProps) => 
         <CardContent className="space-y-4">
           {filteredStaff.map((member) => {
             const currentHours = calculateStaffHours(member.name);
-            const hoursPercentage = (currentHours / member.weeklyHourLimit) * 100;
-            const remainingHours = member.weeklyHourLimit - currentHours;
+            const maxHours = member.maxHours || member.weeklyHourLimit || 40;
+            const hoursPercentage = (currentHours / maxHours) * 100;
+            const remainingHours = maxHours - currentHours;
             
             return (
               <div
@@ -99,7 +101,7 @@ const StaffPool = ({ staff, campType, calculateStaffHours }: StaffPoolProps) => 
                         <TooltipContent className="max-w-xs">
                           <div className="space-y-1">
                             <p><strong>Role:</strong> {member.role || 'Not specified'}</p>
-                            <p><strong>Hours:</strong> {currentHours}/{member.weeklyHourLimit}</p>
+                            <p><strong>Hours:</strong> {currentHours}/{maxHours}</p>
                             <p><strong>Notes:</strong> {member.notes}</p>
                           </div>
                         </TooltipContent>
@@ -121,7 +123,7 @@ const StaffPool = ({ staff, campType, calculateStaffHours }: StaffPoolProps) => 
                   
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs text-gray-600">
-                      <span>{currentHours}h / {member.weeklyHourLimit}h</span>
+                      <span>{currentHours}h / {maxHours}h</span>
                       <span>{Math.round(hoursPercentage)}%</span>
                     </div>
                     <Progress 
