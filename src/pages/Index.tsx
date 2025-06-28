@@ -65,7 +65,7 @@ const Index = () => {
             Refresh Data
           </Button>
         </div>
-        <CampScheduler />
+        <CampScheduler initialData={scheduleData} />
       </div>
     </div>
   );
