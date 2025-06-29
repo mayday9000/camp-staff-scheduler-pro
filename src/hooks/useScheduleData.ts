@@ -71,15 +71,19 @@ export const useScheduleData = () => {
           id: staff.id,
           name: staff.name,
           role: staff.role,
-          qualifications: staff.qualifications || [],
+          qualifications: Array.isArray(staff.qualifications) ? staff.qualifications : [],
           maxHours: staff.maxHours,
           weeklyHourLimit: staff.maxHours || staff.weeklyHourLimit || 40,
           notes: staff.notes || '',
-          availability: staff.availability
+          availability: staff.availability || []
         }))
       };
       
       console.log('Transformed data:', transformedData);
+      console.log('Elementary assignments count:', transformedData.elementary.length);
+      console.log('Middle assignments count:', transformedData.middle.length);
+      console.log('Staff count:', transformedData.staff.length);
+      
       setScheduleData(transformedData);
       
       toast({
