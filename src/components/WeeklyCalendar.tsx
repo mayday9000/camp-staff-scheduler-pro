@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,11 +37,16 @@ interface WeeklyCalendarProps {
 }
 
 const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onStaffRemoval, onStaffSwap }: WeeklyCalendarProps) => {
+  console.log(`WeeklyCalendar - ${campType} received assignments:`, assignments);
+  console.log(`WeeklyCalendar - ${campType} assignments count:`, assignments.length);
+  
   // Normalize assignments to strip off any "T..." suffix from Date
   const cleanedAssignments = assignments.map(a => ({
     ...a,
     Date: a.Date.includes("T") ? a.Date.split("T")[0] : a.Date
   }));
+
+  console.log(`WeeklyCalendar - ${campType} cleaned assignments:`, cleanedAssignments);
 
   const [draggedStaff, setDraggedStaff] = useState<{
     name: string;
@@ -53,6 +57,7 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
   // Generate week dates dynamically based on available data
   const getWeekDates = () => {
     if (!cleanedAssignments || cleanedAssignments.length === 0) {
+      console.log(`WeeklyCalendar - ${campType} no assignments, using default dates`);
       // Default to July 1-5, 2025 if no data
       const dates = [];
       const startDate = new Date('2025-07-01');
@@ -66,6 +71,7 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
 
     // Get unique dates from assignments and sort them
     const uniqueDates = [...new Set(cleanedAssignments.map(a => a.Date))].sort();
+    console.log(`WeeklyCalendar - ${campType} unique dates from assignments:`, uniqueDates);
     
     // Find the first Monday of the available dates
     let startDate = new Date(uniqueDates[0]);
@@ -80,6 +86,7 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
       date.setDate(startDate.getDate() + i);
       dates.push(date.toISOString().split('T')[0]);
     }
+    console.log(`WeeklyCalendar - ${campType} generated week dates:`, dates);
     return dates;
   };
 
@@ -100,9 +107,13 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
   const getAssignmentsForSlot = (date: string, startTime: string) => {
-    return cleanedAssignments.filter(
+    const slotAssignments = cleanedAssignments.filter(
       assignment => assignment.Date === date && assignment.StartTime === startTime
     );
+    if (slotAssignments.length > 0) {
+      console.log(`WeeklyCalendar - ${campType} found assignments for ${date} ${startTime}:`, slotAssignments);
+    }
+    return slotAssignments;
   };
 
   const getStaffMember = (staffName: string) => {
@@ -185,6 +196,9 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
     const endDate = new Date(weekDates[weekDates.length - 1]);
     return `Week of ${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
   };
+
+  console.log(`WeeklyCalendar - ${campType} rendering with week dates:`, weekDates);
+  console.log(`WeeklyCalendar - ${campType} time slots:`, timeSlots);
 
   return (
     <TooltipProvider>
