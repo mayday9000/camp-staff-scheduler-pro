@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 
@@ -58,8 +59,9 @@ export const useScheduleData = () => {
       const rawData = await response.json();
       console.log('Raw webhook data:', rawData);
       
-      // Handle the array wrapper format from the webhook
+      // Handle the array wrapper format from the webhook - take the first element
       const data = Array.isArray(rawData) ? rawData[0] : rawData;
+      console.log('Processed data:', data);
       
       // Transform the data to match our expected format
       const transformedData: ScheduleData = {
@@ -77,6 +79,7 @@ export const useScheduleData = () => {
         }))
       };
       
+      console.log('Transformed data:', transformedData);
       setScheduleData(transformedData);
       
       toast({
@@ -87,72 +90,9 @@ export const useScheduleData = () => {
       console.error('Error loading schedule data:', error);
       setError(error instanceof Error ? error.message : 'Unknown error');
       
-      // Fallback to sample data
-      setScheduleData({
-        elementary: [
-          {
-            Date: "2025-07-01",
-            StartTime: "08:00",
-            EndTime: "09:00",
-            AssignedStaff: "Alice Smith"
-          },
-          {
-            Date: "2025-07-01",
-            StartTime: "09:00",
-            EndTime: "10:00",
-            AssignedStaff: "Bob Johnson"
-          }
-        ],
-        middle: [
-          {
-            Date: "2025-07-02",
-            StartTime: "10:00",
-            EndTime: "11:00",
-            AssignedStaff: "Carol Lee"
-          }
-        ],
-        staff: [
-          {
-            name: "Alice Smith",
-            qualifications: ["Elementary"],
-            weeklyHourLimit: 40,
-            notes: "Head counselor, CPR certified",
-            role: "Head Counselor"
-          },
-          {
-            name: "Bob Johnson",
-            qualifications: ["Elementary", "Middle"],
-            weeklyHourLimit: 35,
-            notes: "Sports specialist",
-            role: "Sports Coordinator"
-          },
-          {
-            name: "Carol Lee",
-            qualifications: ["Middle"],
-            weeklyHourLimit: 30,
-            notes: "Art therapy background",
-            role: "Arts & Crafts"
-          },
-          {
-            name: "David Martinez",
-            qualifications: ["Elementary"],
-            weeklyHourLimit: 25,
-            notes: "Part-time, mornings preferred",
-            role: "Assistant"
-          },
-          {
-            name: "Emma Wilson",
-            qualifications: ["Elementary", "Middle"],
-            weeklyHourLimit: 40,
-            notes: "First aid certified, swimming instructor",
-            role: "Lifeguard"
-          }
-        ]
-      });
-      
       toast({
-        title: "Using Sample Data",
-        description: "Could not load from webhook, using sample data instead.",
+        title: "Load Failed",
+        description: "Could not load from webhook. Please check the connection.",
         variant: "destructive",
       });
     } finally {
