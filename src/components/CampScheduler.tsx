@@ -1,5 +1,5 @@
-// src/components/CampScheduler.tsx
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,29 +8,17 @@ import WeeklyCalendar from "./WeeklyCalendar";
 import StaffPool from "./StaffPool";
 
 const CampScheduler = () => {
-  // 1) grab everything from your hook
   const {
     scheduleData,
     isLoading,
     error,
-    saveData
+    saveData,
+    setScheduleData
   } = useScheduleData();
 
-  // 2) local copy for editing
-  const [localSchedule, setLocalSchedule] = useState(scheduleData);
-
-  // 3) whenever hook finishes loading, overwrite local state
-  useEffect(() => {
-    if (scheduleData) {
-      setLocalSchedule(scheduleData);
-    }
-  }, [scheduleData]);
-
-  // 4) track tabs & saving
   const [activeTab, setActiveTab] = useState<"elementary" | "middle">("elementary");
   const [isSaving, setIsSaving] = useState(false);
 
-  // 5) handlers (unchanged)
   const handleStaffAssignment = (
     staffName: string,
     date: string,
@@ -38,7 +26,9 @@ const CampScheduler = () => {
     endTime: string,
     campType: "elementary" | "middle"
   ) => {
-    setLocalSchedule(prev => {
+    if (!scheduleData) return;
+    
+    setScheduleData(prev => {
       const newSchedule = { ...prev! };
       newSchedule[campType] = newSchedule[campType].filter(
         a => !(a.Date === date && a.StartTime === startTime && a.AssignedStaff === staffName)
@@ -54,7 +44,9 @@ const CampScheduler = () => {
     staffName: string,
     campType: "elementary" | "middle"
   ) => {
-    setLocalSchedule(prev => {
+    if (!scheduleData) return;
+    
+    setScheduleData(prev => {
       const newSchedule = { ...prev! };
       newSchedule[campType] = newSchedule[campType].filter(
         a => !(a.Date === date && a.StartTime === startTime && a.AssignedStaff === staffName)
@@ -72,7 +64,9 @@ const CampScheduler = () => {
     toStaff: string,
     campType: "elementary" | "middle"
   ) => {
-    setLocalSchedule(prev => {
+    if (!scheduleData) return;
+    
+    setScheduleData(prev => {
       const newSchedule = { ...prev! };
       const idxA = newSchedule[campType].findIndex(a =>
         a.Date === fromDate && a.StartTime === fromTime && a.AssignedStaff === fromStaff
@@ -90,39 +84,37 @@ const CampScheduler = () => {
   };
 
   const calculateStaffHours = (staffName: string) => {
-    if (!localSchedule) return 0;
+    if (!scheduleData) return 0;
     return (
-      localSchedule.elementary.filter(a => a.AssignedStaff === staffName).length +
-      localSchedule.middle.filter(a => a.AssignedStaff === staffName).length
+      scheduleData.elementary.filter(a => a.AssignedStaff === staffName).length +
+      scheduleData.middle.filter(a => a.AssignedStaff === staffName).length
     );
   };
 
   const getQualifiedStaff = () => {
-    if (!localSchedule) return [];
-    return localSchedule.staff.filter(staff =>
+    if (!scheduleData) return [];
+    return scheduleData.staff.filter(staff =>
       staff.qualifications.includes(activeTab === "elementary" ? "Elementary" : "Middle")
     );
   };
 
   const handleSaveSchedule = async () => {
-    if (!localSchedule) return;
+    if (!scheduleData) return;
     setIsSaving(true);
     await saveData({
-      elementary: localSchedule.elementary,
-      middle: localSchedule.middle
+      elementary: scheduleData.elementary,
+      middle: scheduleData.middle
     });
     setIsSaving(false);
   };
 
-  // 6) render loading / error states
-  if (isLoading || !localSchedule) {
+  if (isLoading || !scheduleData) {
     return <div className="p-6 text-center">Loading schedule…</div>;
   }
   if (error) {
     return <div className="p-6 text-center text-red-600">Error loading schedule: {error}</div>;
   }
 
-  // 7) main UI
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
       <Card className="p-6">
@@ -150,9 +142,9 @@ const CampScheduler = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-3">
             <WeeklyCalendar
-              assignments={localSchedule[activeTab]}
+              assignments={scheduleData[activeTab]}
               campType={activeTab}
-              staff={localSchedule.staff}
+              staff={scheduleData.staff}
               onStaffAssignment={handleStaffAssignment}
               onStaffRemoval={handleStaffRemoval}
               onStaffSwap={handleStaffSwap}

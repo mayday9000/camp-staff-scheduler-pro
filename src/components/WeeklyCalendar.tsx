@@ -38,6 +38,12 @@ interface WeeklyCalendarProps {
 }
 
 const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onStaffRemoval, onStaffSwap }: WeeklyCalendarProps) => {
+  // Normalize assignments to strip off any "T..." suffix from Date
+  const cleanedAssignments = assignments.map(a => ({
+    ...a,
+    Date: a.Date.includes("T") ? a.Date.split("T")[0] : a.Date
+  }));
+
   const [draggedStaff, setDraggedStaff] = useState<{
     name: string;
     fromDate: string;
@@ -46,7 +52,7 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
 
   // Generate week dates dynamically based on available data
   const getWeekDates = () => {
-    if (!assignments || assignments.length === 0) {
+    if (!cleanedAssignments || cleanedAssignments.length === 0) {
       // Default to July 1-5, 2025 if no data
       const dates = [];
       const startDate = new Date('2025-07-01');
@@ -59,7 +65,7 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
     }
 
     // Get unique dates from assignments and sort them
-    const uniqueDates = [...new Set(assignments.map(a => a.Date))].sort();
+    const uniqueDates = [...new Set(cleanedAssignments.map(a => a.Date))].sort();
     
     // Find the first Monday of the available dates
     let startDate = new Date(uniqueDates[0]);
@@ -94,7 +100,7 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
   const getAssignmentsForSlot = (date: string, startTime: string) => {
-    return assignments.filter(
+    return cleanedAssignments.filter(
       assignment => assignment.Date === date && assignment.StartTime === startTime
     );
   };
