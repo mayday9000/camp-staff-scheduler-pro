@@ -194,6 +194,8 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
+    // Add one day to correct the display issue
+    date.setDate(date.getDate() + 1);
     return `${date.getMonth() + 1}/${date.getDate()}`;
   };
 
