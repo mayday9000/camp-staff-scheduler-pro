@@ -1,8 +1,10 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { X, AlertTriangle } from "lucide-react";
+import { X, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { isStaffAvailable, TIME_SLOTS } from "@/utils/staffAvailability";
 
 interface Assignment {
@@ -34,9 +36,10 @@ interface WeeklyCalendarProps {
   onStaffAssignment: (staffName: string, date: string, startTime: string, endTime: string, campType: "elementary" | "middle") => void;
   onStaffRemoval: (date: string, startTime: string, staffName: string, campType: "elementary" | "middle") => void;
   onStaffSwap: (fromDate: string, fromTime: string, fromStaff: string, toDate: string, toTime: string, toStaff: string, campType: "elementary" | "middle") => void;
+  onWeekChange?: (weekDates: string[]) => void;
 }
 
-const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onStaffRemoval, onStaffSwap }: WeeklyCalendarProps) => {
+const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onStaffRemoval, onStaffSwap, onWeekChange }: WeeklyCalendarProps) => {
   console.log(`WeeklyCalendar - ${campType} received assignments:`, assignments);
   console.log(`WeeklyCalendar - ${campType} assignments count:`, assignments.length);
   
@@ -48,47 +51,29 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
 
   console.log(`WeeklyCalendar - ${campType} cleaned assignments:`, cleanedAssignments);
 
+  // Get current week (Monday to Friday)
+  const getCurrentWeek = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    
+    const weekDates = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      weekDates.push(date.toISOString().split('T')[0]);
+    }
+    return weekDates;
+  };
+
+  const [currentWeekDates, setCurrentWeekDates] = useState<string[]>(getCurrentWeek());
+
   const [draggedStaff, setDraggedStaff] = useState<{
     name: string;
     fromDate: string;
     fromTime: string;
   } | null>(null);
-
-  // Generate week dates dynamically based on available data
-  const getWeekDates = () => {
-    if (!cleanedAssignments || cleanedAssignments.length === 0) {
-      console.log(`WeeklyCalendar - ${campType} no assignments, using default dates`);
-      // Default to July 1-5, 2025 if no data
-      const dates = [];
-      const startDate = new Date('2025-07-01');
-      for (let i = 0; i < 5; i++) {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
-        dates.push(date.toISOString().split('T')[0]);
-      }
-      return dates;
-    }
-
-    // Get unique dates from assignments and sort them
-    const uniqueDates = [...new Set(cleanedAssignments.map(a => a.Date))].sort();
-    console.log(`WeeklyCalendar - ${campType} unique dates from assignments:`, uniqueDates);
-    
-    // Find the first Monday of the available dates
-    let startDate = new Date(uniqueDates[0]);
-    while (startDate.getDay() !== 1) { // 1 = Monday
-      startDate.setDate(startDate.getDate() - 1);
-    }
-    
-    // Generate 5 weekdays starting from Monday
-    const dates = [];
-    for (let i = 0; i < 5; i++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      dates.push(date.toISOString().split('T')[0]);
-    }
-    console.log(`WeeklyCalendar - ${campType} generated week dates:`, dates);
-    return dates;
-  };
 
   // Generate time slots using fixed times
   const getTimeSlots = () => {
@@ -102,9 +87,31 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
     return slots;
   };
 
-  const weekDates = getWeekDates();
   const timeSlots = getTimeSlots();
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  const navigateWeek = (direction: 'prev' | 'next') => {
+    const newWeekDates = [...currentWeekDates];
+    const mondayDate = new Date(newWeekDates[0]);
+    
+    if (direction === 'prev') {
+      mondayDate.setDate(mondayDate.getDate() - 7);
+    } else {
+      mondayDate.setDate(mondayDate.getDate() + 7);
+    }
+    
+    const weekDates = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(mondayDate);
+      date.setDate(mondayDate.getDate() + i);
+      weekDates.push(date.toISOString().split('T')[0]);
+    }
+    
+    setCurrentWeekDates(weekDates);
+    if (onWeekChange) {
+      onWeekChange(weekDates);
+    }
+  };
 
   const getAssignmentsForSlot = (date: string, startTime: string) => {
     const slotAssignments = cleanedAssignments.filter(
@@ -191,27 +198,47 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
   };
 
   const getWeekRange = () => {
-    if (weekDates.length === 0) return "Week of July 1, 2025";
-    const startDate = new Date(weekDates[0]);
-    const endDate = new Date(weekDates[weekDates.length - 1]);
+    if (currentWeekDates.length === 0) return "Week of July 1, 2025";
+    const startDate = new Date(currentWeekDates[0]);
+    const endDate = new Date(currentWeekDates[currentWeekDates.length - 1]);
     return `Week of ${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
   };
 
-  console.log(`WeeklyCalendar - ${campType} rendering with week dates:`, weekDates);
+  console.log(`WeeklyCalendar - ${campType} rendering with week dates:`, currentWeekDates);
   console.log(`WeeklyCalendar - ${campType} time slots:`, timeSlots);
 
   return (
     <TooltipProvider>
       <div className="w-full">
-        <h3 className="text-lg font-semibold mb-4 capitalize">
-          {campType} Camp Schedule - {getWeekRange()}
-        </h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold capitalize">
+            {campType} Camp Schedule - {getWeekRange()}
+          </h3>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigateWeek('prev')}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous Week
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigateWeek('next')}
+            >
+              Next Week
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         
         <div className="border rounded-lg overflow-hidden bg-white">
           {/* Header with days */}
           <div className="grid grid-cols-6 bg-gray-50">
             <div className="p-3 border-r font-medium text-sm text-center">Time</div>
-            {weekDates.map((date, index) => (
+            {currentWeekDates.map((date, index) => (
               <div key={date} className="p-3 border-r last:border-r-0 font-medium text-sm text-center">
                 <div>{dayNames[index]}</div>
                 <div className="text-xs text-gray-500">{formatDate(date)}</div>
@@ -226,7 +253,7 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
                 {formatTime(startTime)}
               </div>
               
-              {weekDates.map(date => {
+              {currentWeekDates.map(date => {
                 const slotAssignments = getAssignmentsForSlot(date, startTime);
                 
                 return (
@@ -245,7 +272,7 @@ const WeeklyCalendar = ({ assignments, campType, staff, onStaffAssignment, onSta
                       e.currentTarget.classList.remove('bg-blue-50', 'border-blue-200');
                     }}
                     role="region"
-                    aria-label={`Time slot ${formatTime(startTime)} on ${dayNames[weekDates.indexOf(date)]}`}
+                    aria-label={`Time slot ${formatTime(startTime)} on ${dayNames[currentWeekDates.indexOf(date)]}`}
                   >
                     <div className="space-y-1">
                       {slotAssignments.map((assignment, index) => {

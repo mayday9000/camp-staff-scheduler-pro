@@ -20,9 +20,10 @@ interface StaffPoolProps {
   staff: Staff[];
   campType: "elementary" | "middle";
   calculateStaffHours: (staffName: string) => number;
+  currentWeekDates: string[];
 }
 
-const StaffPool = ({ staff, campType, calculateStaffHours }: StaffPoolProps) => {
+const StaffPool = ({ staff, campType, calculateStaffHours, currentWeekDates }: StaffPoolProps) => {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   
   const handleDragStart = (e: React.DragEvent, staffName: string) => {
@@ -47,6 +48,13 @@ const StaffPool = ({ staff, campType, calculateStaffHours }: StaffPoolProps) => 
     ? staff 
     : staff.filter(s => s.role === roleFilter);
 
+  const formatWeekRange = () => {
+    if (currentWeekDates.length === 0) return "Current Week";
+    const startDate = new Date(currentWeekDates[0]);
+    const endDate = new Date(currentWeekDates[currentWeekDates.length - 1]);
+    return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  };
+
   return (
     <TooltipProvider>
       <Card className="h-fit">
@@ -54,6 +62,9 @@ const StaffPool = ({ staff, campType, calculateStaffHours }: StaffPoolProps) => 
           <CardTitle className="text-lg capitalize">
             Available Staff - {campType} Camp
           </CardTitle>
+          <div className="text-sm text-gray-600">
+            Hours for {formatWeekRange()}
+          </div>
           {roles.length > 0 && (
             <div className="pt-2">
               <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -101,7 +112,7 @@ const StaffPool = ({ staff, campType, calculateStaffHours }: StaffPoolProps) => 
                         <TooltipContent className="max-w-xs">
                           <div className="space-y-1">
                             <p><strong>Role:</strong> {member.role || 'Not specified'}</p>
-                            <p><strong>Hours:</strong> {currentHours}/{maxHours}</p>
+                            <p><strong>Hours this week:</strong> {currentHours}/{maxHours}</p>
                             <p><strong>Notes:</strong> {member.notes}</p>
                           </div>
                         </TooltipContent>

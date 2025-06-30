@@ -59,15 +59,11 @@ export const useScheduleData = () => {
       const rawData = await response.json();
       console.log('Raw webhook data:', rawData);
       
-      // Handle the array wrapper format from the webhook - take the first element
-      const data = Array.isArray(rawData) ? rawData[0] : rawData;
-      console.log('Processed data:', data);
-      
       // Transform the data to match our expected format
       const transformedData: ScheduleData = {
-        elementary: data.elementary || [],
-        middle: data.middle || [],
-        staff: (data.staff || []).map((staff: any) => ({
+        elementary: rawData.elementary || [],
+        middle: rawData.middle || [],
+        staff: (rawData.staff || []).map((staff: any) => ({
           id: staff.id,
           name: staff.name,
           role: staff.role,
@@ -106,6 +102,8 @@ export const useScheduleData = () => {
 
   const saveData = async (data: Pick<ScheduleData, 'elementary' | 'middle'>) => {
     try {
+      console.log('Sending POST request with data:', data);
+      
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {
@@ -118,10 +116,15 @@ export const useScheduleData = () => {
         throw new Error(`Failed to save data: ${response.status}`);
       }
 
+      console.log('POST request successful, performing GET request to verify...');
+      
       toast({
         title: "Schedule Saved",
         description: "The camp schedule has been successfully saved.",
       });
+      
+      // Perform GET request to verify the save worked
+      await loadData();
       
       return true;
     } catch (error) {

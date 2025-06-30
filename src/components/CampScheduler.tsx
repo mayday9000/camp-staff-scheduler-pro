@@ -19,6 +19,24 @@ const CampScheduler = () => {
   const [activeTab, setActiveTab] = useState<"elementary" | "middle">("elementary");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Get current week (Monday to Friday)
+  const getCurrentWeek = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    
+    const weekDates = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      weekDates.push(date.toISOString().split('T')[0]);
+    }
+    return weekDates;
+  };
+
+  const [currentWeekDates, setCurrentWeekDates] = useState<string[]>(getCurrentWeek());
+
   const handleStaffAssignment = (
     staffName: string,
     date: string,
@@ -83,12 +101,16 @@ const CampScheduler = () => {
     });
   };
 
-  const calculateStaffHours = (staffName: string) => {
+  const calculateStaffHoursForWeek = (staffName: string) => {
     if (!scheduleData) return 0;
-    return (
-      scheduleData.elementary.filter(a => a.AssignedStaff === staffName).length +
-      scheduleData.middle.filter(a => a.AssignedStaff === staffName).length
-    );
+    
+    // Filter assignments for current week only
+    const weekAssignments = [
+      ...scheduleData.elementary.filter(a => currentWeekDates.includes(a.Date) && a.AssignedStaff === staffName),
+      ...scheduleData.middle.filter(a => currentWeekDates.includes(a.Date) && a.AssignedStaff === staffName)
+    ];
+    
+    return weekAssignments.length;
   };
 
   const getQualifiedStaff = () => {
@@ -98,13 +120,22 @@ const CampScheduler = () => {
     );
   };
 
+  const handleWeekChange = (weekDates: string[]) => {
+    setCurrentWeekDates(weekDates);
+  };
+
   const handleSaveSchedule = async () => {
     if (!scheduleData) return;
     setIsSaving(true);
-    await saveData({
-      elementary: scheduleData.elementary,
-      middle: scheduleData.middle
-    });
+    
+    // Filter data for current week only
+    const currentWeekData = {
+      elementary: scheduleData.elementary.filter(a => currentWeekDates.includes(a.Date)),
+      middle: scheduleData.middle.filter(a => currentWeekDates.includes(a.Date))
+    };
+    
+    console.log('Saving current week data:', currentWeekData);
+    await saveData(currentWeekData);
     setIsSaving(false);
   };
 
@@ -148,6 +179,7 @@ const CampScheduler = () => {
               onStaffAssignment={handleStaffAssignment}
               onStaffRemoval={handleStaffRemoval}
               onStaffSwap={handleStaffSwap}
+              onWeekChange={handleWeekChange}
             />
           </div>
 
@@ -155,7 +187,8 @@ const CampScheduler = () => {
             <StaffPool
               staff={getQualifiedStaff()}
               campType={activeTab}
-              calculateStaffHours={calculateStaffHours}
+              calculateStaffHours={calculateStaffHoursForWeek}
+              currentWeekDates={currentWeekDates}
             />
           </div>
         </div>
